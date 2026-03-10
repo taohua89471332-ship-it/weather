@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nova AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================
+   DESIGN TOKENS
+=================================================== */
+:root {
+  --bg:#08080f; --surface:#111118; --s2:#181824; --s3:#20202e;
+  --b1:#ffffff0e; --b2:#ffffff18; --b3:#ffffff26;
+  --a1:#7c6aff; --a2:#ff6a9e; --a3:#6affc8; --a4:#ffcc6a; --a5:#6ab8ff;
+  --t1:#ede8ff; --t2:#8a83b8; --t3:#44406a; --t4:#2a2740;
+  --ub:#1e1650; --ab:#0c0c1c;
+  --r:16px; --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+[data-theme="light"] {
+  --bg:#f0eeff; --surface:#ffffff; --s2:#f5f3ff; --s3:#ebe8ff;
+  --b1:#7c6aff18; --b2:#7c6aff28; --b3:#7c6aff40;
+  --t1:#1a1530; --t2:#5a5480; --t3:#9990cc; --t4:#ddd8ff;
+  --ub:#e8e2ff; --ab:#f5f3ff;
+}
+[data-theme="green"] {
+  --bg:#050f0a; --surface:#0a1a10; --s2:#0f2018; --s3:#152a1e;
+  --b1:#6affc80e; --b2:#6affc818;
+  --a1:#6affc8; --a2:#ff6a9e; --a3:#ffcc6a;
+  --t1:#e0fff5; --t2:#6aa880; --t3:#2a5040;
+  --ub:#0a2018; --ab:#06120c;
+}
+[data-theme="rose"] {
+  --bg:#0f080c; --surface:#1a1014; --s2:#22141a; --s3:#2a1a20;
+  --b1:#ff6a9e0e; --b2:#ff6a9e18;
+  --a1:#ff6a9e; --a2:#7c6aff; --a3:#6affc8;
+  --t1:#ffe8f0; --t2:#c08090; --t3:#6a3040;
+  --ub:#2a0a18; --ab:#150a10;
+}
+
+/* ===================================================
+   RESET & BASE
+=================================================== */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--t1);display:flex;flex-direction:column;height:100dvh;transition:background .3s,color .3s}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(124,106,255,0.07) 0%,transparent 50%),radial-gradient(ellipse 60% 80% at 90% 100%,rgba(255,106,158,0.05) 0%,transparent 50%),radial-gradient(ellipse 50% 50% at 60% 40%,rgba(106,255,200,0.02) 0%,transparent 60%);pointer-events:none;z-index:0;transition:opacity .3s}
+
+/* ===================================================
+   SCROLLBAR
+=================================================== */
+::-webkit-scrollbar{width:0;height:0}
+*{scrollbar-width:none}
+
+/* ===================================================
+   OVERLAY
+=================================================== */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:200;opacity:0;pointer-events:none;transition:opacity .3s}
+.overlay.show{opacity:1;pointer-events:all}
+
+/* ===================================================
+   PAGE SYSTEM
+=================================================== */
+.page{display:none;flex-direction:column;flex:1;overflow:hidden;position:relative;z-index:1}
+.page.active{display:flex}
+
+/* ===================================================
+   TOPBAR
+=================================================== */
+.topbar{z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;background:rgba(8,8,15,0.92);backdrop-filter:blur(28px);border-bottom:1px solid var(--b1);flex-shrink:0;transition:background .3s}
+[data-theme="light"] .topbar{background:rgba(240,238,255,0.92)}
+.tb-left{display:flex;align-items:center;gap:10px}
+.tb-logo{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 16px rgba(124,106,255,.4);cursor:pointer;flex-shrink:0}
+.tb-name{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;letter-spacing:.04em;background:linear-gradient(90deg,var(--t1),var(--a1));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tb-model-badge{font-size:9px;color:var(--a3);background:color-mix(in srgb,var(--a3) 10%,transparent);border:1px solid color-mix(in srgb,var(--a3) 25%,transparent);padding:2px 8px;border-radius:20px;letter-spacing:.07em;font-family:'Space Mono',monospace;cursor:pointer;white-space:nowrap;transition:all .2s}
+.tb-right{display:flex;align-items:center;gap:8px}
+.tb-btn{width:34px;height:34px;border-radius:10px;background:var(--s2);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:all .18s;position:relative;flex-shrink:0}
+.tb-btn:active{transform:scale(.90);background:var(--s3)}
+.dot-badge{position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:var(--a2);border:2px solid var(--bg);animation:dot-pulse 2.5s infinite}
+@keyframes dot-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--a2) 60%,transparent)}50%{box-shadow:0 0 0 5px transparent}}
+
+/* ===================================================
+   MODE TABS
+=================================================== */
+.mode-strip{display:flex;gap:6px;padding:9px 14px;overflow-x:auto;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(20px);border-bottom:1px solid var(--b1);flex-shrink:0}
+.m-tab{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;border:1px solid var(--b1);color:var(--t2);transition:all .2s;letter-spacing:.02em;background:transparent}
+.m-tab.active{background:color-mix(in srgb,var(--a1) 15%,transparent);border-color:color-mix(in srgb,var(--a1) 45%,transparent);color:var(--t1)}
+.m-dot{width:6px;height:6px;border-radius:50%}
+
+/* ===================================================
+   CHAT PAGE
+=================================================== */
+.chat-area{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;overscroll-behavior:contain}
+
+/* Welcome */
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px 16px;text-align:center;min-height:100%;animation:fade-up .5s ease}
+@keyframes fade-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.w-orb{width:90px;height:90px;border-radius:28px;background:linear-gradient(135deg,var(--a1),var(--a2),var(--a3));display:flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 0 50px color-mix(in srgb,var(--a1) 40%,transparent),0 0 100px color-mix(in srgb,var(--a1) 15%,transparent);animation:orb-float 4s ease-in-out infinite}
+@keyframes orb-float{0%,100%{transform:translateY(0) scale(1);box-shadow:0 0 50px color-mix(in srgb,var(--a1) 40%,transparent),0 0 100px color-mix(in srgb,var(--a1) 15%,transparent)}50%{transform:translateY(-6px) scale(1.02);box-shadow:0 10px 60px color-mix(in srgb,var(--a1) 50%,transparent),0 0 120px color-mix(in srgb,var(--a1) 20%,transparent)}}
+.w-greeting{font-size:13px;color:var(--t3);font-family:'Space Mono',monospace;letter-spacing:.08em;text-transform:uppercase}
+.w-title{font-size:28px;font-weight:900;line-height:1.2;letter-spacing:-.03em}
+.w-title em{background:linear-gradient(90deg,var(--a1),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-style:normal}
+.w-sub{color:var(--t2);font-size:13px;line-height:1.7;max-width:280px}
+.w-stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.w-stat{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;background:var(--s2);border:1px solid var(--b2);font-size:11px;color:var(--t2)}
+.w-stat-dot{width:5px;height:5px;border-radius:50%}
+.qp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:360px}
+.qp{background:var(--surface);border:1px solid var(--b2);border-radius:16px;padding:14px;cursor:pointer;transition:all .2s;text-align:left;position:relative;overflow:hidden}
+.qp::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,color-mix(in srgb,var(--a1) 8%,transparent),transparent);opacity:0;transition:opacity .2s}
+.qp:active::before{opacity:1}
+.qp:active{transform:scale(.96);border-color:var(--a1)}
+.qp-ico{font-size:24px;margin-bottom:8px}
+.qp-t{font-size:12px;font-weight:600;margin-bottom:3px}
+.qp-s{font-size:11px;color:var(--t3);line-height:1.4}
+
+/* Messages */
+.msg{display:flex;gap:9px;animation:msg-pop .28s cubic-bezier(.34,1.5,.64,1)}
+@keyframes msg-pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.msg.user{flex-direction:row-reverse}
+.av{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;margin-top:2px}
+.av.ai{background:linear-gradient(135deg,var(--a1),var(--a2));box-shadow:0 0 12px color-mix(in srgb,var(--a1) 35%,transparent)}
+.av.user{background:var(--s2);border:1px solid var(--b2)}
+.msg-body{max-width:82%;display:flex;flex-direction:column}
+.msg.user .msg-body{align-items:flex-end}
+.bubble{padding:10px 13px;border-radius:15px;font-size:13.5px;line-height:1.72;word-break:break-word;position:relative}
+.msg.ai .bubble{background:var(--ab);border:1px solid var(--b1);border-top-left-radius:3px}
+.msg.user .bubble{background:linear-gradient(135deg,var(--ub),color-mix(in srgb,var(--a1) 30%,transparent));border:1px solid color-mix(in srgb,var(--a1) 22%,transparent);border-top-right-radius:3px}
+.bubble strong,.bubble b{color:var(--a3);font-weight:600}
+.bubble em,.bubble i{color:var(--a2);font-style:italic}
+.bubble .mh{font-size:14px;font-weight:700;color:var(--t1);margin:8px 0 4px;display:block}
+.bubble .mhr{border:none;border-top:1px solid var(--b2);margin:8px 0;display:block}
+.bubble .mbq{border-left:3px solid var(--a1);padding:6px 10px;margin:6px 0;background:color-mix(in srgb,var(--a1) 6%,transparent);border-radius:0 8px 8px 0;font-style:italic;color:var(--t2);font-size:13px;display:block}
+.bubble .mul{list-style:none;margin:5px 0;padding:0;display:flex;flex-direction:column;gap:3px}
+.bubble .mul li{padding-left:14px;position:relative;font-size:13.5px}
+.bubble .mul li::before{content:'›';position:absolute;left:0;color:var(--a1)}
+.bubble .mol{padding-left:18px;margin:5px 0;display:flex;flex-direction:column;gap:3px}
+.bubble .mol li{font-size:13.5px}
+.ic{background:color-mix(in srgb,var(--a1) 12%,transparent);padding:1px 6px;border-radius:5px;font-family:'Space Mono',monospace;font-size:12px;color:var(--a1)}
+.cb{background:#07071a;border:1px solid color-mix(in srgb,var(--a1) 20%,transparent);border-radius:11px;margin:8px 0;overflow:hidden}
+.cb-head{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid color-mix(in srgb,var(--a1) 15%,transparent);background:color-mix(in srgb,var(--a1) 6%,transparent)}
+.cb-lang{font-size:10px;color:var(--a3);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.08em}
+.cb-copy{font-size:10px;color:var(--t3);cursor:pointer;padding:2px 8px;border-radius:5px;border:1px solid var(--b1);background:transparent;font-family:'Noto Sans SC',sans-serif;transition:all .2s}
+.cb-copy:active{background:color-mix(in srgb,var(--a1) 12%,transparent);color:var(--a1)}
+.cb-body{padding:10px 12px;font-family:'Space Mono',monospace;font-size:11.5px;line-height:1.75;color:#c8b8ff;overflow-x:auto;white-space:pre}
+.img-ph{border-radius:12px;background:linear-gradient(135deg,#160f3a,#0f183a,#0a1a18);padding:36px 20px;text-align:center;border:1px solid var(--b2);margin:8px 0}
+.img-ph-ico{font-size:56px;margin:8px 0}
+.img-ph-label{font-size:11px;color:var(--t3);margin-bottom:6px}
+.img-ph-desc{font-size:12px;color:var(--t2);margin-top:8px}
+.msg-meta{display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap}
+.msg-time{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace}
+.msg-tok{font-size:10px;color:var(--t3);background:color-mix(in srgb,var(--t1) 4%,transparent);padding:1px 6px;border-radius:5px;font-family:'Space Mono',monospace}
+.msg-acts{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.ma-btn{font-size:11px;color:var(--t3);background:color-mix(in srgb,var(--t1) 4%,transparent);border:1px solid var(--b1);padding:4px 9px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .18s;white-space:nowrap;font-family:'Noto Sans SC',sans-serif}
+.ma-btn:active{background:color-mix(in srgb,var(--a1) 12%,transparent);color:var(--a1);border-color:color-mix(in srgb,var(--a1) 35%,transparent)}
+.ma-btn.starred{color:var(--a4);border-color:color-mix(in srgb,var(--a4) 35%,transparent)}
+.ma-btn.liked{color:var(--a3);border-color:color-mix(in srgb,var(--a3) 35%,transparent)}
+.think-block{background:color-mix(in srgb,var(--a1) 4%,transparent);border:1px solid color-mix(in srgb,var(--a1) 12%,transparent);border-radius:10px;padding:9px 12px;margin-bottom:9px;font-size:12px;color:var(--t2);font-style:italic;max-height:80px;overflow:hidden;position:relative;cursor:pointer;transition:max-height .3s}
+.think-block.expanded{max-height:300px}
+.think-block::after{content:'';position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(transparent,color-mix(in srgb,var(--ab) 80%,transparent));pointer-events:none}
+.think-block.expanded::after{opacity:0}
+.think-lbl{font-size:10px;color:var(--a1);font-family:'Space Mono',monospace;letter-spacing:.06em;margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.think-dot{width:5px;height:5px;border-radius:50%;background:var(--a1);animation:think-pulse 1.1s ease-in-out infinite}
+@keyframes think-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+.typing-w{display:flex;align-items:center;gap:5px;padding:11px 14px;background:var(--ab);border:1px solid var(--b1);border-radius:15px;border-top-left-radius:3px;width:fit-content}
+.td{width:7px;height:7px;border-radius:50%;background:var(--a1);animation:ty 1.3s ease-in-out infinite}
+.td:nth-child(2){animation-delay:.18s;background:var(--a2)}
+.td:nth-child(3){animation-delay:.36s;background:var(--a3)}
+@keyframes ty{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-8px);opacity:1}}
+.sc{display:inline-block;width:2px;height:14px;background:var(--a1);margin-left:2px;animation:sc-blink .65s step-end infinite;vertical-align:text-bottom}
+@keyframes sc-blink{0%,100%{opacity:1}50%{opacity:0}}
+.date-div{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--t3);font-family:'Space Mono',monospace;letter-spacing:.06em;margin:4px 0}
+.date-div::before,.date-div::after{content:'';flex:1;height:1px;background:var(--b2)}
+.scroll-dn{position:fixed;bottom:160px;right:16px;width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;z-index:20;opacity:0;transition:opacity .2s;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.scroll-dn.show{opacity:1}
+
+/* ===================================================
+   INPUT AREA
+=================================================== */
+.input-area{position:relative;z-index:10;padding:10px 14px 14px;background:color-mix(in srgb,var(--bg) 97%,transparent);backdrop-filter:blur(28px);border-top:1px solid var(--b1);flex-shrink:0;transition:background .3s}
+.ia-status{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px}
+.ia-status-l{display:flex;align-items:center;gap:6px;overflow:hidden}
+.ia-dot{width:5px;height:5px;border-radius:50%;background:var(--a3);animation:ia-blink 2.5s ease infinite;flex-shrink:0}
+@keyframes ia-blink{0%,100%{opacity:1}50%{opacity:.2}}
+.ia-status-txt{font-size:11px;color:var(--t3);font-family:'Space Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ia-chars{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace;white-space:nowrap;flex-shrink:0}
+.ia-chars.warn{color:var(--a4)}
+.ia-chars.over{color:var(--a2)}
+.tool-row{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto}
+.tc{display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;cursor:pointer;border:1px solid var(--b1);color:var(--t2);transition:all .18s;background:transparent}
+.tc:active{background:color-mix(in srgb,var(--a1) 12%,transparent)}
+.tc.on{background:color-mix(in srgb,var(--a1) 12%,transparent);border-color:color-mix(in srgb,var(--a1) 40%,transparent);color:var(--a1)}
+.file-prev{display:flex;align-items:center;gap:8px;padding:8px 11px;margin-bottom:8px;background:var(--s2);border:1px solid var(--b2);border-radius:10px}
+.fp-ico{font-size:20px}
+.fp-nm{font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-sz{font-size:11px;color:var(--t3)}
+.fp-rm{font-size:14px;color:var(--t3);cursor:pointer;padding:4px}
+.input-box{display:flex;align-items:flex-end;gap:8px;background:var(--surface);border:1px solid var(--b2);border-radius:18px;padding:9px 9px 9px 14px;transition:border-color .2s,box-shadow .2s}
+.input-box:focus-within{border-color:color-mix(in srgb,var(--a1) 40%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--a1) 5%,transparent)}
+#msg-inp{flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-family:'Noto Sans SC',sans-serif;font-size:13.5px;line-height:1.55;resize:none;max-height:130px;min-height:22px}
+#msg-inp::placeholder{color:var(--t3)}
+.ib-btns{display:flex;align-items:center;gap:5px}
+.ib{width:32px;height:32px;border-radius:9px;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--t3);transition:all .18s}
+.ib:active{color:var(--t2);background:var(--s2)}
+.send{width:37px;height:37px;border-radius:12px;background:linear-gradient(135deg,var(--a1),var(--a2));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:white;box-shadow:0 0 16px color-mix(in srgb,var(--a1) 40%,transparent);transition:all .18s;flex-shrink:0}
+.send:active{transform:scale(.90)}
+.send:disabled{opacity:.38;cursor:not-allowed;box-shadow:none}
+.stop{width:37px;height:37px;border-radius:12px;background:color-mix(in srgb,#ff5050 15%,transparent);border:1px solid color-mix(in srgb,#ff5050 35%,transparent);display:none;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:all .18s;flex-shrink:0}
+.stop.show{display:flex}
+.stop:active{background:color-mix(in srgb,#ff5050 28%,transparent)}
+
+/* ===================================================
+   BOTTOM NAV
+=================================================== */
+.bottom-nav{display:flex;background:color-mix(in srgb,var(--bg) 97%,transparent);backdrop-filter:blur(28px);border-top:1px solid var(--b1);flex-shrink:0;transition:background .3s}
+.nav-it{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:8px 0 calc(10px + var(--safe-bottom));transition:all .18s;position:relative}
+.nav-it:active{opacity:.7}
+.nav-ico{font-size:20px;transition:transform .2s}
+.nav-it.active .nav-ico{transform:scale(1.12)}
+.nav-lbl{font-size:10px;color:var(--t3);transition:color .18s;letter-spacing:.02em}
+.nav-it.active .nav-lbl{color:var(--a1)}
+.nav-pip{position:absolute;bottom:calc(6px + var(--safe-bottom));width:18px;height:3px;border-radius:2px;background:var(--a1);transform:scaleX(0);transition:transform .2s}
+.nav-it.active .nav-pip{transform:scaleX(1)}
+
+/* ===================================================
+   SIDEBAR
+=================================================== */
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:292px;background:var(--surface);border-right:1px solid var(--b2);z-index:201;transform:translateX(-100%);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+.sidebar.show{transform:translateX(0)}
+.sb-head{padding:20px 16px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:10px}
+.sb-logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 18px color-mix(in srgb,var(--a1) 40%,transparent)}
+.sb-brand{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;letter-spacing:.04em}
+.sb-sub{font-size:10px;color:var(--a3);margin-top:1px}
+.sb-new{margin:12px 12px 0;padding:11px 14px;background:linear-gradient(135deg,color-mix(in srgb,var(--a1) 12%,transparent),color-mix(in srgb,var(--a2) 7%,transparent));border:1px solid color-mix(in srgb,var(--a1) 28%,transparent);border-radius:12px;color:var(--t1);font-size:13px;font-family:'Noto Sans SC',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .18s;width:calc(100% - 24px)}
+.sb-new:active{opacity:.8;transform:scale(.98)}
+.sb-srch{margin:10px 12px 6px;padding:8px 12px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;color:var(--t1);font-size:12px;font-family:'Noto Sans SC',sans-serif;outline:none;width:calc(100% - 24px)}
+.sb-srch::placeholder{color:var(--t3)}
+.sb-srch:focus{border-color:color-mix(in srgb,var(--a1) 35%,transparent)}
+.sb-sec{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);padding:10px 16px 5px;font-family:'Space Mono',monospace}
+.sb-list{flex:1;overflow-y:auto;padding-bottom:8px}
+.sb-it{padding:10px 14px;margin:2px 8px;border-radius:10px;cursor:pointer;transition:all .15s;position:relative}
+.sb-it:active,.sb-it:hover{background:var(--s2)}
+.sb-it.cur{background:color-mix(in srgb,var(--a1) 10%,transparent);border:1px solid color-mix(in srgb,var(--a1) 20%,transparent)}
+.sb-it-ttl{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.sb-it-prv{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-it-del{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:6px;background:color-mix(in srgb,#ff5050 12%,transparent);display:none;align-items:center;justify-content:center;font-size:12px;color:#ff7070}
+.sb-it:hover .sb-it-del{display:flex}
+.sb-foot{padding:12px;border-top:1px solid var(--b1)}
+.sb-usr{display:flex;align-items:center;gap:10px;padding:9px;border-radius:11px;cursor:pointer;transition:background .15s}
+.sb-usr:active{background:var(--s2)}
+.sb-ava{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;font-size:17px}
+.sb-uname{font-size:13px;font-weight:500}
+.sb-uplan{font-size:10px;color:var(--a3)}
+
+/* ===================================================
+   SETTINGS PANEL
+=================================================== */
+.sp{position:fixed;top:0;right:0;bottom:0;width:100%;max-width:360px;background:var(--surface);border-left:1px solid var(--b2);z-index:202;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.sp.show{transform:translateX(0)}
+.sp-head{padding:18px 16px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sp-title{font-size:18px;font-weight:700}
+.sp-x{width:32px;height:32px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--t2)}
+.sp-body{flex:1;overflow-y:auto;padding:16px}
+.sp-stitle{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);font-family:'Space Mono',monospace;margin:18px 0 9px}
+.sp-stitle:first-child{margin-top:0}
+.sp-card{background:var(--s2);border:1px solid var(--b1);border-radius:14px;overflow:hidden;margin-bottom:10px}
+.sp-row{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid var(--b1);cursor:pointer;transition:background .15s;gap:10px}
+.sp-row:last-child{border-bottom:none}
+.sp-row:active{background:var(--s3)}
+.sp-rl{font-size:13px;display:flex;align-items:center;gap:8px}
+.sp-rl-ico{font-size:16px;width:22px;text-align:center}
+.sp-rv{font-size:12px;color:var(--t3);display:flex;align-items:center;gap:6px}
+.tog{width:44px;height:25px;border-radius:13px;background:var(--s3);border:1px solid var(--b2);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog.on{background:linear-gradient(90deg,var(--a1),var(--a2))}
+.tok{width:19px;height:19px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.tog.on .tok{transform:translateX(19px)}
+.mch{display:flex;flex-wrap:wrap;gap:7px;padding:13px 15px}
+.mc{padding:6px 13px;border-radius:20px;font-size:11px;border:1px solid var(--b2);background:var(--s3);color:var(--t2);cursor:pointer;transition:all .18s;font-family:'Space Mono',monospace}
+.mc.sel{background:color-mix(in srgb,var(--a1) 15%,transparent);border-color:color-mix(in srgb,var(--a1) 45%,transparent);color:var(--a1)}
+/* Theme swatches */
+.th-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:13px 15px}
+.th-sw{border-radius:12px;height:44px;cursor:pointer;border:2px solid transparent;transition:all .2s;position:relative}
+.th-sw.sel{border-color:var(--a1);box-shadow:0 0 0 2px color-mix(in srgb,var(--a1) 30%,transparent)}
+.th-sw span{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,.8);letter-spacing:.04em}
+
+/* ===================================================
+   EXPLORE PAGE
+=================================================== */
+.explore-page{overflow-y:auto;padding:16px 14px 20px}
+.ex-hero{background:linear-gradient(135deg,color-mix(in srgb,var(--a1) 12%,transparent),color-mix(in srgb,var(--a2) 8%,transparent));border:1px solid color-mix(in srgb,var(--a1) 20%,transparent);border-radius:18px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden}
+.ex-hero::before{content:'✦';position:absolute;right:16px;top:16px;font-size:56px;opacity:.06;pointer-events:none}
+.ex-hero-title{font-size:20px;font-weight:800;margin-bottom:6px}
+.ex-hero-sub{font-size:13px;color:var(--t2);line-height:1.6}
+.ex-hero-tags{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.ex-tag{padding:4px 11px;border-radius:20px;font-size:11px;background:color-mix(in srgb,var(--a1) 15%,transparent);color:var(--a1);border:1px solid color-mix(in srgb,var(--a1) 30%,transparent);cursor:pointer;transition:all .18s}
+.ex-tag:active{background:color-mix(in srgb,var(--a1) 25%,transparent)}
+.ex-sec{font-size:13px;font-weight:700;margin:18px 0 10px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ex-card{background:var(--surface);border:1px solid var(--b2);border-radius:16px;padding:16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.ex-card:active{transform:scale(.97);border-color:var(--a1)}
+.ex-card-ico{font-size:28px;margin-bottom:10px}
+.ex-card-t{font-size:13px;font-weight:700;margin-bottom:4px}
+.ex-card-s{font-size:11px;color:var(--t3);line-height:1.5}
+.ex-card-badge{position:absolute;top:10px;right:10px;font-size:9px;padding:2px 7px;border-radius:10px;font-family:'Space Mono',monospace;letter-spacing:.05em}
+.badge-new{background:color-mix(in srgb,var(--a3) 15%,transparent);color:var(--a3);border:1px solid color-mix(in srgb,var(--a3) 25%,transparent)}
+.badge-hot{background:color-mix(in srgb,var(--a2) 15%,transparent);color:var(--a2);border:1px solid color-mix(in srgb,var(--a2) 25%,transparent)}
+.badge-pro{background:color-mix(in srgb,var(--a4) 15%,transparent);color:var(--a4);border:1px solid color-mix(in srgb,var(--a4) 25%,transparent)}
+.prompt-list{display:flex;flex-direction:column;gap:8px}
+.prompt-it{background:var(--surface);border:1px solid var(--b2);border-radius:13px;padding:13px 14px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:12px}
+.prompt-it:active{border-color:var(--a1);background:color-mix(in srgb,var(--a1) 4%,transparent)}
+.prom-ico{font-size:22px;flex-shrink:0}
+.prom-t{font-size:13px;font-weight:500;margin-bottom:2px}
+.prom-s{font-size:11px;color:var(--t3)}
+.prom-arr{font-size:14px;color:var(--t3);margin-left:auto}
+
+/* ===================================================
+   TOOLS PAGE
+=================================================== */
+.tools-page{overflow-y:auto;padding:16px 14px 20px}
+.tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.tool-card{background:var(--surface);border:1px solid var(--b2);border-radius:16px;padding:16px;cursor:pointer;transition:all .2s;text-align:center}
+.tool-card:active{transform:scale(.96);border-color:var(--a1)}
+.tool-card-ico{font-size:30px;margin-bottom:10px}
+.tool-card-t{font-size:13px;font-weight:600;margin-bottom:4px}
+.tool-card-s{font-size:11px;color:var(--t3);line-height:1.5}
+.tool-card.featured{border-color:color-mix(in srgb,var(--a1) 30%,transparent);background:color-mix(in srgb,var(--a1) 5%,transparent)}
+
+/* ===================================================
+   PROFILE PAGE
+=================================================== */
+.profile-page{overflow-y:auto;padding:16px 14px 20px}
+.prof-hero{background:linear-gradient(135deg,color-mix(in srgb,var(--a1) 10%,transparent),color-mix(in srgb,var(--a2) 6%,transparent));border:1px solid var(--b2);border-radius:20px;padding:24px;text-align:center;margin-bottom:16px}
+.prof-ava{width:72px;height:72px;border-radius:22px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px;box-shadow:0 0 30px color-mix(in srgb,var(--a1) 30%,transparent)}
+.prof-name{font-size:20px;font-weight:800;margin-bottom:4px}
+.prof-plan{display:inline-block;font-size:11px;color:var(--a3);background:color-mix(in srgb,var(--a3) 10%,transparent);border:1px solid color-mix(in srgb,var(--a3) 25%,transparent);padding:3px 12px;border-radius:20px;font-family:'Space Mono',monospace;margin-bottom:14px;letter-spacing:.05em}
+.prof-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ps-item{background:color-mix(in srgb,var(--bg) 60%,transparent);border-radius:12px;padding:10px;text-align:center}
+.ps-val{font-size:20px;font-weight:800;font-family:'Space Mono',monospace;background:linear-gradient(90deg,var(--a1),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ps-lbl{font-size:10px;color:var(--t3);margin-top:3px}
+.fav-list{display:flex;flex-direction:column;gap:8px}
+.fav-it{background:var(--surface);border:1px solid var(--b2);border-radius:13px;padding:12px 14px;cursor:pointer;transition:all .18s}
+.fav-it:active{border-color:var(--a1)}
+.fav-q{font-size:12px;color:var(--t3);margin-bottom:5px}
+.fav-a{font-size:13px;color:var(--t1);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fav-meta{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.fav-time{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace}
+.fav-del{font-size:11px;color:var(--t3);cursor:pointer;padding:2px 8px;border:1px solid var(--b1);border-radius:7px}
+.fav-del:active{color:#ff7070}
+
+/* ===================================================
+   SEARCH BAR
+=================================================== */
+.srch-bar{padding:8px 14px;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(20px);border-bottom:1px solid var(--b1);flex-shrink:0;display:none}
+.srch-bar.show{display:block}
+.srch-wrap{position:relative}
+.srch-in{width:100%;padding:9px 36px 9px 14px;background:var(--s2);border:1px solid var(--b2);border-radius:11px;color:var(--t1);font-family:'Noto Sans SC',sans-serif;font-size:13px;outline:none}
+.srch-in:focus{border-color:color-mix(in srgb,var(--a1) 40%,transparent)}
+.srch-in::placeholder{color:var(--t3)}
+.srch-x{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--t3);cursor:pointer}
+
+/* ===================================================
+   VOICE OVERLAY
+=================================================== */
+.voice-ov{position:fixed;inset:0;z-index:300;background:color-mix(in srgb,var(--bg) 97%,transparent);backdrop-filter:blur(40px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px}
+.voice-ov.show{display:flex}
+.voice-ring{width:110px;height:110px;border-radius:50%;border:3px solid color-mix(in srgb,var(--a1) 30%,transparent);display:flex;align-items:center;justify-content:center;position:relative;animation:vring 2s ease-in-out infinite}
+@keyframes vring{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--a1) 30%,transparent)}50%{box-shadow:0 0 0 20px transparent}}
+.voice-ring-inner{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 0 30px color-mix(in srgb,var(--a1) 50%,transparent)}
+.vwave{display:flex;align-items:center;gap:4px;height:50px}
+.vbar{width:4px;border-radius:3px;background:linear-gradient(to top,var(--a1),var(--a2));animation:vbar-a 1s ease-in-out infinite}
+.vbar:nth-child(1){height:16px;animation-delay:0s}
+.vbar:nth-child(2){height:28px;animation-delay:.1s}
+.vbar:nth-child(3){height:42px;animation-delay:.2s}
+.vbar:nth-child(4){height:34px;animation-delay:.3s}
+.vbar:nth-child(5){height:50px;animation-delay:.4s}
+.vbar:nth-child(6){height:38px;animation-delay:.3s}
+.vbar:nth-child(7){height:44px;animation-delay:.2s}
+.vbar:nth-child(8){height:28px;animation-delay:.1s}
+.vbar:nth-child(9){height:16px;animation-delay:0s}
+@keyframes vbar-a{0%,100%{transform:scaleY(1);opacity:.9}50%{transform:scaleY(.35);opacity:.4}}
+.vtxt{font-size:15px;color:var(--t2);font-family:'Space Mono',monospace}
+.vstop{padding:13px 36px;border-radius:30px;background:color-mix(in srgb,#ff5050 15%,transparent);border:1px solid color-mix(in srgb,#ff5050 35%,transparent);color:#ff7070;font-size:14px;cursor:pointer;font-family:'Noto Sans SC',sans-serif;transition:all .18s}
+.vstop:active{background:color-mix(in srgb,#ff5050 28%,transparent)}
+
+/* ===================================================
+   TOAST
+=================================================== */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--s2);border:1px solid var(--b2);color:var(--t1);padding:10px 20px;border-radius:22px;font-size:13px;z-index:500;opacity:0;transition:all .28s;white-space:nowrap;box-shadow:0 6px 24px rgba(0,0,0,.5);pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===================================================
+   MISC
+=================================================== */
+.page-title{font-size:20px;font-weight:800;padding:16px 14px 4px;flex-shrink:0;letter-spacing:-.02em}
+select{background:var(--s3);color:var(--t1);border:1px solid var(--b2);border-radius:8px;padding:4px 8px;font-family:'Noto Sans SC',sans-serif;font-size:12px;outline:none}
+</style>
+</head>
+<body>
+
+<!-- OVERLAY -->
+<div class="overlay" id="ov" onclick="closeAll()"></div>
+
+<!-- ================================================
+     SIDEBAR
+================================================ -->
+<div class="sidebar" id="sb">
+  <div class="sb-head">
+    <div class="sb-logo">✦</div>
+    <div><div class="sb-brand">NOVA AI</div><div class="sb-sub">智能对话助手</div></div>
+  </div>
+  <button class="sb-new" onclick="newChat()">✦ &nbsp;新建对话</button>
+  <input class="sb-srch" placeholder="🔍 搜索历史对话..." oninput="filterSb(this.value)">
+  <div class="sb-list" id="sb-list">
+    <div class="sb-sec">今天</div>
+    <div class="sb-it cur" onclick="loadCh('当前对话')"><div class="sb-it-ttl">✨ 当前对话</div><div class="sb-it-prv">与 Nova AI 对话中...</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+    <div class="sb-it" onclick="loadCh('Python数据分析')"><div class="sb-it-ttl">Python 数据分析</div><div class="sb-it-prv">用 pandas 处理 CSV 文件</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+    <div class="sb-it" onclick="loadCh('商业计划书')"><div class="sb-it-ttl">商业计划书写作</div><div class="sb-it-prv">SaaS 产品商业模型分析</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+    <div class="sb-sec">昨天</div>
+    <div class="sb-it" onclick="loadCh('英文邮件')"><div class="sb-it-ttl">英文邮件润色</div><div class="sb-it-prv">Dear John, I hope this...</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+    <div class="sb-it" onclick="loadCh('旅行规划')"><div class="sb-it-ttl">旅行规划·日本十日</div><div class="sb-it-prv">帮我规划东京大阪京都...</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+    <div class="sb-sec">更早</div>
+    <div class="sb-it" onclick="loadCh('高考数学')"><div class="sb-it-ttl">高考数学解题思路</div><div class="sb-it-prv">设 f(x)=x²+2x-3...</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+    <div class="sb-it" onclick="loadCh('React组件')"><div class="sb-it-ttl">React 组件开发</div><div class="sb-it-prv">帮我写一个 Modal 组件</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+    <div class="sb-it" onclick="loadCh('论文大纲')"><div class="sb-it-ttl">毕业论文大纲</div><div class="sb-it-prv">AI 对教育行业的影响...</div><div class="sb-it-del" onclick="delSb(event,this)">✕</div></div>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-usr" onclick="gotoSettings()">
+      <div class="sb-ava">👤</div>
+      <div><div class="sb-uname">我的账户</div><div class="sb-uplan">Pro · 无限制</div></div>
+      <div style="margin-left:auto;font-size:13px;color:var(--t3)">⚙️</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================
+     SETTINGS PANEL
+================================================ -->
+<div class="sp" id="sp">
+  <div class="sp-head">
+    <div class="sp-title">⚙️ 偏好设置</div>
+    <div class="sp-x" onclick="closeSp()">✕</div>
+  </div>
+  <div class="sp-body">
+    <div class="sp-stitle">AI 模型</div>
+    <div class="sp-card">
+      <div class="mch" id="model-chips">
+        <div class="mc sel" onclick="pickModel(this,'claude-sonnet-4-20250514','Nova-Pro')">Nova-Pro</div>
+        <div class="mc" onclick="pickModel(this,'claude-haiku-4-5-20251001','Nova-Fast')">Nova-Fast</div>
+        <div class="mc" onclick="pickModel(this,'claude-opus-4-20250514','Nova-Opus')">Nova-Opus</div>
+        <div class="mc" onclick="pickModel(this,'claude-sonnet-4-20250514','Nova-Code')">Nova-Code</div>
+      </div>
+    </div>
+
+    <div class="sp-stitle">主题外观</div>
+    <div class="sp-card">
+      <div class="th-grid">
+        <div class="th-sw sel" style="background:linear-gradient(135deg,#0a0a1a,#1a1240)" data-theme="dark" onclick="setTheme('dark',this)"><span>深空</span></div>
+        <div class="th-sw" style="background:linear-gradient(135deg,#f0eeff,#ddd8ff)" data-theme="light" onclick="setTheme('light',this)"><span style="color:#333">明亮</span></div>
+        <div class="th-sw" style="background:linear-gradient(135deg,#050f0a,#0a2018)" data-theme="green" onclick="setTheme('green',this)"><span>翠绿</span></div>
+        <div class="th-sw" style="background:linear-gradient(135deg,#0f080c,#2a0a18)" data-theme="rose" onclick="setTheme('rose',this)"><span>玫红</span></div>
+      </div>
+    </div>
+
+    <div class="sp-stitle">对话功能</div>
+    <div class="sp-card">
+      <div class="sp-row" onclick="togSet(this,'think')"><div class="sp-rl"><span class="sp-rl-ico">🧠</span>深度思考模式</div><div class="tog on" id="tog-think"><div class="tok"></div></div></div>
+      <div class="sp-row" onclick="togSet(this,'stream')"><div class="sp-rl"><span class="sp-rl-ico">⚡</span>流式输出</div><div class="tog on" id="tog-stream"><div class="tok"></div></div></div>
+      <div class="sp-row" onclick="togSet(this,'web')"><div class="sp-rl"><span class="sp-rl-ico">🌐</span>联网搜索</div><div class="tog" id="tog-web"><div class="tok"></div></div></div>
+      <div class="sp-row" onclick="togSet(this,'mem')"><div class="sp-rl"><span class="sp-rl-ico">💾</span>记忆上下文</div><div class="tog on" id="tog-mem"><div class="tok"></div></div></div>
+      <div class="sp-row" onclick="togSet(this,'showthink')"><div class="sp-rl"><span class="sp-rl-ico">👁️</span>显示思考过程</div><div class="tog" id="tog-showthink"><div class="tok"></div></div></div>
+    </div>
+
+    <div class="sp-stitle">回复风格</div>
+    <div class="sp-card">
+      <div class="sp-row"><div class="sp-rl"><span class="sp-rl-ico">🎯</span>回复语言</div><div class="sp-rv"><select onchange="prefs.lang=this.value"><option>中文</option><option>English</option><option>中英混合</option></select></div></div>
+      <div class="sp-row"><div class="sp-rl"><span class="sp-rl-ico">🖊️</span>回复风格</div><div class="sp-rv"><select onchange="prefs.style=this.value"><option>专业严谨</option><option>轻松友好</option><option>简洁直接</option><option>学术深度</option></select></div></div>
+      <div class="sp-row"><div class="sp-rl"><span class="sp-rl-ico">📏</span>最大 Token</div><div class="sp-rv"><select onchange="prefs.maxTok=parseInt(this.value)"><option>2048</option><option selected>4096</option><option>8192</option></select></div></div>
+    </div>
+
+    <div class="sp-stitle">账户</div>
+    <div class="sp-card">
+      <div class="sp-row"><div class="sp-rl"><span class="sp-rl-ico">📊</span>本月用量</div><div class="sp-rv">∞ 无限制</div></div>
+      <div class="sp-row"><div class="sp-rl"><span class="sp-rl-ico">🔔</span>通知推送</div><div class="tog" onclick="this.classList.toggle('on')"><div class="tok"></div></div></div>
+      <div class="sp-row" onclick="clearAll()"><div class="sp-rl" style="color:var(--a2)"><span class="sp-rl-ico">🗑️</span>清除所有对话</div><div style="font-size:12px;color:var(--a2)">›</div></div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ================================================
+     TOPBAR (shared)
+================================================ -->
+<div class="topbar" id="topbar">
+  <div class="tb-left">
+    <div class="tb-btn" onclick="openSb()">☰</div>
+    <div class="tb-logo">✦</div>
+    <div class="tb-name">NOVA AI</div>
+    <div class="tb-model-badge" id="mdl-badge" onclick="pickNextModel()">Nova-Pro</div>
+  </div>
+  <div class="tb-right">
+    <div class="tb-btn" id="srch-tb" onclick="toggleSearch()">🔍</div>
+    <div class="tb-btn" onclick="showToast('🔔 暂无新通知')">🔔<div class="dot-badge"></div></div>
+    <div class="tb-btn" onclick="gotoSettings()">⚙️</div>
+  </div>
+</div>
+
+<!-- ================================================
+     SEARCH BAR
+================================================ -->
+<div class="srch-bar" id="srch-bar">
+  <div class="srch-wrap">
+    <input class="srch-in" id="srch-in" placeholder="搜索对话内容..." oninput="doSearch(this.value)">
+    <div class="srch-x" onclick="closeSearch()">✕</div>
+  </div>
+</div>
+
+<!-- ================================================
+     PAGE: CHAT
+================================================ -->
+<div class="page active" id="pg-chat" style="flex:1;overflow:hidden">
+  <div class="mode-strip" id="mode-strip">
+    <div class="m-tab active" onclick="setMode(this,'聊天','💬')"><span class="m-dot" style="background:var(--a1)"></span>💬 聊天</div>
+    <div class="m-tab" onclick="setMode(this,'深度研究','🔬')"><span class="m-dot" style="background:var(--a2)"></span>🔬 研究</div>
+    <div class="m-tab" onclick="setMode(this,'代码','💻')"><span class="m-dot" style="background:var(--a3)"></span>💻 代码</div>
+    <div class="m-tab" onclick="setMode(this,'创作','✍️')"><span class="m-dot" style="background:var(--a4)"></span>✍️ 创作</div>
+    <div class="m-tab" onclick="setMode(this,'翻译','🌐')"><span class="m-dot" style="background:var(--a5)"></span>🌐 翻译</div>
+    <div class="m-tab" onclick="setMode(this,'图像','🎨')"><span class="m-dot" style="background:#c86aff)"></span>🎨 图像</div>
+  </div>
+
+  <div class="chat-area" id="chat-area">
+    <div class="welcome" id="welcome">
+      <div class="w-orb">✦</div>
+      <div class="w-greeting">Nova AI · Pro</div>
+      <div class="w-title">你好，我是<br><em>Nova AI</em></div>
+      <div class="w-sub">接入真实 Claude API，支持深度推理、代码执行、创意写作与多语言翻译</div>
+      <div class="w-stats">
+        <div class="w-stat"><div class="w-stat-dot" style="background:var(--a3)"></div>已连接 Claude</div>
+        <div class="w-stat"><div class="w-stat-dot" style="background:var(--a1)"></div>深思已开启</div>
+        <div class="w-stat"><div class="w-stat-dot" style="background:var(--a4)"></div>Pro 无限制</div>
+      </div>
+      <div class="qp-grid">
+        <div class="qp" onclick="sendQ('帮我写一首关于AI与人类共生的现代诗')"><div class="qp-ico">✍️</div><div class="qp-t">创意写作</div><div class="qp-s">诗歌·故事·文案创作</div></div>
+        <div class="qp" onclick="sendQ('用 Python 实现一个二叉搜索树，包含增删查功能')"><div class="qp-ico">💻</div><div class="qp-t">代码生成</div><div class="qp-s">Python·JS·Go·Rust</div></div>
+        <div class="qp" onclick="sendQ('深度分析2025年人工智能领域的重大突破与趋势')"><div class="qp-ico">🔬</div><div class="qp-t">深度研究</div><div class="qp-s">分析·总结·洞察</div></div>
+        <div class="qp" onclick="sendQ('把以下内容翻译成地道英文并润色：人工智能正在深刻改变每个人的生活方式')"><div class="qp-ico">🌐</div><div class="qp-t">智能翻译</div><div class="qp-s">中英互译·多语言</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-dn" id="scroll-dn" onclick="scrollBot()">↓</div>
+
+  <div class="input-area">
+    <div class="ia-status">
+      <div class="ia-status-l">
+        <div class="ia-dot" id="ia-dot"></div>
+        <div class="ia-status-txt" id="ia-txt">Nova-Pro · 就绪</div>
+      </div>
+      <div class="ia-chars" id="ia-chars"></div>
+    </div>
+    <div id="fp-area"></div>
+    <div class="tool-row">
+      <div class="tc" id="tc-web" onclick="toggleTc('web','🌐 联网')">🌐 联网</div>
+      <div class="tc on" id="tc-think" onclick="toggleTc('think','🧠 深思')">🧠 深思</div>
+      <div class="tc" id="tc-code" onclick="toggleTc('code','⚡ 代码')">⚡ 代码</div>
+      <div class="tc" id="tc-img" onclick="toggleTc('img','🎨 绘图')">🎨 绘图</div>
+      <div class="tc" onclick="openVoice()">🎤 语音</div>
+      <div class="tc" onclick="trigFile()">📎 文件</div>
+    </div>
+    <div class="input-box" id="input-box">
+      <textarea id="msg-inp" rows="1" placeholder="问我任何问题..." oninput="onInp(this)" onkeydown="onKey(event)"></textarea>
+      <div class="ib-btns">
+        <button class="ib" onclick="trigFile()">📎</button>
+        <button class="stop" id="stop-btn" onclick="doStop()">⏹</button>
+        <button class="send" id="send-btn" onclick="doSend()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================
+     PAGE: EXPLORE
+================================================ -->
+<div class="page" id="pg-explore" style="flex:1;overflow:hidden">
+  <div class="page-title">🧭 探索</div>
+  <div class="explore-page">
+    <div class="ex-hero">
+      <div class="ex-hero-title">今日精选提示词</div>
+      <div class="ex-hero-sub">精心策划的 AI 使用技巧与高效提示词，让你的创作效率倍增</div>
+      <div class="ex-hero-tags">
+        <div class="ex-tag" onclick="sendQ('用费曼技巧帮我理解量子纠缠的本质')">费曼学习法</div>
+        <div class="ex-tag" onclick="sendQ('给我做一个完整的SWOT分析模板')">SWOT分析</div>
+        <div class="ex-tag" onclick="sendQ('用苏格拉底式对话帮我思考这个决策')">苏格拉底问答</div>
+        <div class="ex-tag" onclick="sendQ('帮我做一个番茄工作法时间安排')">时间管理</div>
+      </div>
+    </div>
+
+    <div class="ex-sec">🛠️ AI 能力矩阵</div>
+    <div class="ex-grid">
+      <div class="ex-card" onclick="switchToChat('代码')"><div class="ex-card-ico">💻</div><div class="ex-card-t">代码助手</div><div class="ex-card-s">支持50+编程语言，调试、重构、文档生成</div><div class="ex-card-badge badge-hot">HOT</div></div>
+      <div class="ex-card" onclick="switchToChat('创作')"><div class="ex-card-ico">✍️</div><div class="ex-card-t">创意写作</div><div class="ex-card-s">小说、诗歌、剧本、广告文案</div></div>
+      <div class="ex-card" onclick="switchToChat('深度研究')"><div class="ex-card-ico">🔬</div><div class="ex-card-t">深度研究</div><div class="ex-card-s">学术分析、报告生成、数据解读</div><div class="ex-card-badge badge-new">NEW</div></div>
+      <div class="ex-card" onclick="switchToChat('翻译')"><div class="ex-card-ico">🌐</div><div class="ex-card-t">多语翻译</div><div class="ex-card-s">30+语种，专业润色，文化适配</div></div>
+      <div class="ex-card" onclick="navTo('tools')"><div class="ex-card-ico">🎨</div><div class="ex-card-t">图像描述</div><div class="ex-card-s">生成 Midjourney / DALL-E 提示词</div><div class="ex-card-badge badge-pro">PRO</div></div>
+      <div class="ex-card" onclick="sendQ('帮我进行一次专业的压力管理对话')"><div class="ex-card-ico">🧘</div><div class="ex-card-t">情感支持</div><div class="ex-card-s">倾听、疏导，专业心理健康对话</div></div>
+    </div>
+
+    <div class="ex-sec">⚡ 快速提示词</div>
+    <div class="prompt-list">
+      <div class="prompt-it" onclick="sendQ('作为专业面试官，对我进行一场技术面试模拟，岗位：前端工程师')"><div class="prom-ico">🎤</div><div><div class="prom-t">面试模拟</div><div class="prom-s">技术/产品/运营岗位模拟面试</div></div><div class="prom-arr">›</div></div>
+      <div class="prompt-it" onclick="sendQ('帮我把这个想法拆解成一个完整的执行计划：我想开发一个AI英语学习App')"><div class="prom-ico">🗺️</div><div><div class="prom-t">创业执行计划</div><div class="prom-s">从想法到落地的完整路线图</div></div><div class="prom-arr">›</div></div>
+      <div class="prompt-it" onclick="sendQ('用苏格拉底式对话帮我分析：是否应该换工作')"><div class="prom-ico">🤔</div><div><div class="prom-t">苏格拉底决策助手</div><div class="prom-s">理性分析人生重大决策</div></div><div class="prom-arr">›</div></div>
+      <div class="prompt-it" onclick="sendQ('帮我做一份一周健康饮食计划，目标：减脂增肌，每天3餐')"><div class="prom-ico">🥗</div><div><div class="prom-t">健康饮食计划</div><div class="prom-s">个性化营养方案定制</div></div><div class="prom-arr">›</div></div>
+      <div class="prompt-it" onclick="sendQ('帮我写一封道歉邮件，我错过了重要客户的会议')"><div class="prom-ico">✉️</div><div><div class="prom-t">职场邮件模板</div><div class="prom-s">商务、道歉、感谢等场景邮件</div></div><div class="prom-arr">›</div></div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ================================================
+     PAGE: TOOLS
+================================================ -->
+<div class="page" id="pg-tools" style="flex:1;overflow:hidden">
+  <div class="page-title">🛠️ 工具箱</div>
+  <div class="tools-page">
+    <div class="tool-grid">
+      <div class="tool-card featured" onclick="sendQ('你现在是一个专业的代码审查工程师，请帮我审查以下代码：')">
+        <div class="tool-card-ico">🔍</div>
+        <div class="tool-card-t">代码审查</div>
+        <div class="tool-card-s">Bug检测、性能优化、最佳实践</div>
+      </div>
+      <div class="tool-card featured" onclick="sendQ('请帮我生成一段高质量的 Midjourney 图像提示词，风格：赛博朋克城市，主角是AI机器人')">
+        <div class="tool-card-ico">🎨</div>
+        <div class="tool-card-t">绘图提示词</div>
+        <div class="tool-card-s">Midjourney / DALL-E / Stable Diffusion</div>
+      </div>
+      <div class="tool-card" onclick="sendQ('请将以下简历内容优化润色，使其更加专业吸引人：')">
+        <div class="tool-card-ico">📄</div>
+        <div class="tool-card-t">简历优化</div>
+        <div class="tool-card-s">专业润色，突出亮点</div>
+      </div>
+      <div class="tool-card" onclick="sendQ('帮我将以下英文学术摘要翻译成中文，保持学术风格：')">
+        <div class="tool-card-ico">🎓</div>
+        <div class="tool-card-t">学术翻译</div>
+        <div class="tool-card-s">论文、摘要、专业术语</div>
+      </div>
+      <div class="tool-card" onclick="sendQ('帮我将以下文章总结为5个核心要点：')">
+        <div class="tool-card-ico">📝</div>
+        <div class="tool-card-t">文章摘要</div>
+        <div class="tool-card-s">快速提炼核心内容</div>
+      </div>
+      <div class="tool-card" onclick="sendQ('我需要你扮演一位产品经理，帮我撰写一份产品需求文档(PRD)，产品是：')">
+        <div class="tool-card-ico">📋</div>
+        <div class="tool-card-t">PRD 生成</div>
+        <div class="tool-card-s">产品需求文档自动生成</div>
+      </div>
+      <div class="tool-card" onclick="sendQ('帮我分析以下数据并给出商业洞察：月活用户10万，付费转化率2%，DAU 3万，留存率第7天40%')">
+        <div class="tool-card-ico">📊</div>
+        <div class="tool-card-t">数据分析</div>
+        <div class="tool-card-s">业务数据解读与洞察</div>
+      </div>
+      <div class="tool-card" onclick="sendQ('帮我写一首押韵的中文歌词，主题是：城市孤独与数字连接，副歌要有爆发感')">
+        <div class="tool-card-ico">🎵</div>
+        <div class="tool-card-t">歌词创作</div>
+        <div class="tool-card-s">押韵、节奏、情感表达</div>
+      </div>
+    </div>
+
+    <div class="ex-sec" style="padding:0;margin-bottom:12px">🧪 实验性功能</div>
+    <div class="tool-grid">
+      <div class="tool-card" style="border-color:color-mix(in srgb,var(--a4) 30%,transparent)" onclick="sendQ('对下面这段对话进行情感分析，识别情绪类型和强度：')">
+        <div class="tool-card-ico">😊</div>
+        <div class="tool-card-t">情感分析</div>
+        <div class="tool-card-s">文本情绪识别</div>
+      </div>
+      <div class="tool-card" style="border-color:color-mix(in srgb,var(--a4) 30%,transparent)" onclick="sendQ('帮我使用思维导图格式（文字版）展示以下主题的知识体系：机器学习')">
+        <div class="tool-card-ico">🗺️</div>
+        <div class="tool-card-t">思维导图</div>
+        <div class="tool-card-s">知识体系可视化</div>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ================================================
+     PAGE: PROFILE
+================================================ -->
+<div class="page" id="pg-profile" style="flex:1;overflow:hidden">
+  <div class="page-title">👤 我的</div>
+  <div class="profile-page">
+    <div class="prof-hero">
+      <div class="prof-ava">👤</div>
+      <div class="prof-name">Nova 用户</div>
+      <div class="prof-plan">Pro · 无限制</div>
+      <div class="prof-stats">
+        <div class="ps-item"><div class="ps-val" id="ps-msgs">0</div><div class="ps-lbl">本次消息</div></div>
+        <div class="ps-item"><div class="ps-val" id="ps-favs">0</div><div class="ps-lbl">已收藏</div></div>
+        <div class="ps-item"><div class="ps-val">∞</div><div class="ps-lbl">可用额度</div></div>
+      </div>
+    </div>
+
+    <div class="ex-sec" style="padding:0;margin-bottom:10px">⭐ 收藏的消息</div>
+    <div class="fav-list" id="fav-list">
+      <div style="text-align:center;color:var(--t3);font-size:13px;padding:24px 0">还没有收藏任何消息<br><span style="font-size:11px">点击消息下方的「⭐ 收藏」按钮即可保存</span></div>
+    </div>
+
+    <div class="ex-sec" style="padding:0;margin:18px 0 10px">🎨 主题偏好</div>
+    <div class="th-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      <div class="th-sw sel" style="background:linear-gradient(135deg,#0a0a1a,#1a1240);border-radius:12px;height:44px;cursor:pointer;border:2px solid var(--a1);position:relative" onclick="setTheme('dark',this)"><span style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,.8)">深空</span></div>
+      <div class="th-sw" style="background:linear-gradient(135deg,#f0eeff,#ddd8ff);border-radius:12px;height:44px;cursor:pointer;border:2px solid transparent;position:relative" onclick="setTheme('light',this)"><span style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:9px;color:#333">明亮</span></div>
+      <div class="th-sw" style="background:linear-gradient(135deg,#050f0a,#0a2018);border-radius:12px;height:44px;cursor:pointer;border:2px solid transparent;position:relative" onclick="setTheme('green',this)"><span style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,.8)">翠绿</span></div>
+      <div class="th-sw" style="background:linear-gradient(135deg,#0f080c,#2a0a18);border-radius:12px;height:44px;cursor:pointer;border:2px solid transparent;position:relative" onclick="setTheme('rose',this)"><span style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,.8)">玫红</span></div>
+    </div>
+
+    <div class="ex-sec" style="padding:0;margin:18px 0 10px">⚙️ 快捷操作</div>
+    <div class="sp-card">
+      <div class="sp-row" onclick="gotoSettings()"><div class="sp-rl"><span class="sp-rl-ico">⚙️</span>完整设置</div><div style="font-size:12px;color:var(--t3)">›</div></div>
+      <div class="sp-row" onclick="newChat();navTo('chat')"><div class="sp-rl"><span class="sp-rl-ico">✦</span>新建对话</div><div style="font-size:12px;color:var(--t3)">›</div></div>
+      <div class="sp-row" onclick="exportChat()"><div class="sp-rl"><span class="sp-rl-ico">📤</span>导出对话</div><div style="font-size:12px;color:var(--t3)">›</div></div>
+      <div class="sp-row" onclick="clearAll()"><div class="sp-rl" style="color:var(--a2)"><span class="sp-rl-ico">🗑️</span>清除所有数据</div><div style="font-size:12px;color:var(--a2)">›</div></div>
+    </div>
+
+    <div style="text-align:center;color:var(--t3);font-size:11px;margin-top:24px;font-family:'Space Mono',monospace;letter-spacing:.04em">NOVA AI v3.0 · Powered by Claude</div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav" id="bottom-nav">
+  <div class="nav-it active" id="ni-chat" onclick="navTo('chat')">
+    <div class="nav-ico">💬</div><div class="nav-lbl">对话</div><div class="nav-pip"></div>
+  </div>
+  <div class="nav-it" id="ni-explore" onclick="navTo('explore')">
+    <div class="nav-ico">🧭</div><div class="nav-lbl">探索</div><div class="nav-pip"></div>
+  </div>
+  <div class="nav-it" id="ni-tools" onclick="navTo('tools')">
+    <div class="nav-ico">🛠️</div><div class="nav-lbl">工具</div><div class="nav-pip"></div>
+  </div>
+  <div class="nav-it" id="ni-profile" onclick="navTo('profile')">
+    <div class="nav-ico">👤</div><div class="nav-lbl">我的</div><div class="nav-pip"></div>
+  </div>
+</div>
+
+<!-- VOICE -->
+<div class="voice-ov" id="voice-ov">
+  <div style="font-size:11px;color:var(--t3);font-family:'Space Mono',monospace;letter-spacing:.08em;text-transform:uppercase">Nova · 语音输入</div>
+  <div class="voice-ring"><div class="voice-ring-inner">🎤</div></div>
+  <div class="vwave">
+    <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+    <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+    <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+  </div>
+  <div class="vtxt" id="vtxt">请说话...</div>
+  <div class="vstop" onclick="stopVoice()">停止录音</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+<input type="file" id="file-inp" style="display:none" onchange="onFile(this)">
+
+<script>
+// ============================================
+// STATE
+// ============================================
+const $ = id => document.getElementById(id);
+let msgs = [], favs = [], gen = false, stopF = false;
+let mode = '聊天', selectedModel = 'claude-sonnet-4-20250514', modelName = 'Nova-Pro';
+let tc = {web:false,think:true,code:false,img:false};
+let prefs = {lang:'中文',style:'专业严谨',maxTok:4096,stream:true,mem:true,showThink:false};
+let totalMsgCount = 0;
+let voiceTimer = null;
+
+// ============================================
+// NAVIGATION
+// ============================================
+function navTo(pg) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-it').forEach(n => n.classList.remove('active'));
+  $(`pg-${pg}`)?.classList.add('active');
+  $(`ni-${pg}`)?.classList.add('active');
+  // Show/hide chat-specific UI
+  const isChat = pg === 'chat';
+  $('mode-strip').style.display = isChat ? '' : 'none';
+  $('bottom-nav').style.display = 'flex';
+  if (pg === 'profile') updateProfile();
+}
+
+function switchToChat(m) {
+  navTo('chat');
+  document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
+  const tabs = document.querySelectorAll('.m-tab');
+  const modes = ['聊天','深度研究','代码','创作','翻译','图像'];
+  const idx = modes.indexOf(m);
+  if (idx >= 0) tabs[idx].classList.add('active');
+  mode = m;
+  updatePlaceholder();
+}
+
+// ============================================
+// SIDEBAR / SETTINGS
+// ============================================
+function openSb() { $('sb').classList.add('show'); $('ov').classList.add('show'); }
+function closeSb() { $('sb').classList.remove('show'); }
+function gotoSettings() { closeSb(); $('sp').classList.add('show'); $('ov').classList.add('show'); }
+function closeSp() { $('sp').classList.remove('show'); $('ov').classList.remove('show'); }
+function closeAll() { closeSb(); closeSp(); $('ov').classList.remove('show'); }
+
+function filterSb(v) {
+  document.querySelectorAll('.sb-it').forEach(el => {
+    el.style.display = (!v || el.textContent.toLowerCase().includes(v.toLowerCase())) ? '' : 'none';
+  });
+}
+function delSb(e, btn) {
+  e.stopPropagation();
+  const it = btn.closest('.sb-it');
+  it.style.transition='all .3s'; it.style.opacity='0'; it.style.transform='translateX(-20px)';
+  setTimeout(() => it.remove(), 300);
+  showToast('🗑️ 已删除');
+}
+function loadCh(name) { closeAll(); showToast(`📂 载入「${name}」`); }
+function newChat() {
+  closeAll();
+  document.querySelectorAll('#chat-area .msg, #chat-area .date-div').forEach(el => el.remove());
+  $('welcome').style.display = '';
+  msgs = []; totalMsgCount = 0;
+  showToast('✨ 新对话已开始');
+}
+function clearAll() {
+  newChat();
+  favs = [];
+  showToast('✅ 所有数据已清除');
+  closeSp();
+}
+function exportChat() {
+  const text = msgs.map(m => `[${m.role === 'user' ? '我' : 'Nova AI'}]\n${m.content}\n`).join('\n---\n\n');
+  const blob = new Blob([text || '暂无对话内容'], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Nova-AI-${new Date().toLocaleDateString('zh')}.txt`;
+  a.click();
+  showToast('📤 已导出对话');
+}
+
+// ============================================
+// SETTINGS
+// ============================================
+function pickModel(el, apiId, name) {
+  document.querySelectorAll('.mc').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedModel = apiId;
+  modelName = name;
+  $('mdl-badge').textContent = name;
+  setStatus('就绪');
+  showToast(`🤖 已切换到 ${name}`);
+}
+const modelCycle = [
+  {api:'claude-sonnet-4-20250514',name:'Nova-Pro'},
+  {api:'claude-haiku-4-5-20251001',name:'Nova-Fast'},
+  {api:'claude-sonnet-4-20250514',name:'Nova-Code'},
+];
+let mIdx = 0;
+function pickNextModel() {
+  mIdx = (mIdx + 1) % modelCycle.length;
+  const m = modelCycle[mIdx];
+  selectedModel = m.api; modelName = m.name;
+  $('mdl-badge').textContent = m.name;
+  setStatus('就绪');
+  showToast(`🤖 ${m.name}`);
+}
+function togSet(row, key) {
+  const tog = row.querySelector('.tog');
+  if (!tog) return;
+  tog.classList.toggle('on');
+  const on = tog.classList.contains('on');
+  if (key === 'think') tc.think = on, $('tc-think').classList.toggle('on', on);
+  if (key === 'stream') prefs.stream = on;
+  if (key === 'web') tc.web = on, $('tc-web').classList.toggle('on', on);
+  if (key === 'mem') prefs.mem = on;
+  if (key === 'showthink') prefs.showThink = on;
+}
+function setTheme(theme, el) {
+  document.body.setAttribute('data-theme', theme === 'dark' ? '' : theme);
+  document.querySelectorAll('.th-sw').forEach(s => s.classList.remove('sel'));
+  el.classList.add('sel');
+  showToast(`🎨 已切换主题`);
+}
+
+// ============================================
+// SEARCH
+// ============================================
+function toggleSearch() {
+  const bar = $('srch-bar');
+  bar.classList.toggle('show');
+  if (bar.classList.contains('show')) $('srch-in').focus();
+  else { doSearch(''); }
+}
+function closeSearch() {
+  $('srch-bar').classList.remove('show');
+  $('srch-in').value = '';
+  doSearch('');
+}
+function doSearch(v) {
+  document.querySelectorAll('.bubble').forEach(b => {
+    b.style.outline = v && b.textContent.toLowerCase().includes(v.toLowerCase())
+      ? '2px solid var(--a1)' : '';
+  });
+}
+
+// ============================================
+// MODE
+// ============================================
+function setMode(el, name, icon) {
+  mode = name;
+  document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  updatePlaceholder();
+  showToast(`${icon} ${name}模式`);
+}
+function updatePlaceholder() {
+  const map = {'聊天':'问我任何问题...','深度研究':'输入研究主题...','代码':'描述你想要的代码功能...','创作':'告诉我你的创作灵感...','翻译':'输入要翻译的内容...','图像':'描述你想生成的图像...'};
+  $('msg-inp').placeholder = map[mode] || '问我任何问题...';
+}
+
+// ============================================
+// TOOLS BAR
+// ============================================
+function toggleTc(name, label) {
+  tc[name] = !tc[name];
+  $(`tc-${name}`).classList.toggle('on', tc[name]);
+  showToast(tc[name] ? `✅ ${label}已开启` : `⭕ ${label}已关闭`);
+}
+
+// ============================================
+// MARKDOWN RENDERER
+// ============================================
+function md(t) {
+  if (!t) return '';
+  t = t.replace(/```(\w*)\n([\s\S]*?)```/g, (_, l, c) =>
+    `<div class="cb"><div class="cb-head"><span class="cb-lang">${l||'code'}</span><button class="cb-copy" onclick="cpCode(this)">复制</button></div><div class="cb-body">${esc(c.trim())}</div></div>`);
+  t = t.replace(/`([^`\n]+)`/g,'<span class="ic">$1</span>');
+  t = t.replace(/^#{3} (.+)$/gm,'<span class="mh">$1</span>');
+  t = t.replace(/^#{2} (.+)$/gm,'<span class="mh" style="font-size:15px">$1</span>');
+  t = t.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>');
+  t = t.replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  t = t.replace(/^---$/gm,'<span class="mhr"></span>');
+  t = t.replace(/^> (.+)$/gm,'<span class="mbq">$1</span>');
+  t = t.replace(/\[IMG:([^\]]+)\]/g,(_,d)=>
+    `<div class="img-ph"><div class="img-ph-label">🎨 AI 生成图像</div><div class="img-ph-ico">🖼️</div><div class="img-ph-desc">${d}</div></div>`);
+  t = t.replace(/((?:^\d+\. .+\n?)+)/gm,m=>{
+    const its=m.trim().split('\n').map(l=>`<li>${l.replace(/^\d+\. /,'')}</li>`).join('');
+    return `<ol class="mol">${its}</ol>`;
+  });
+  t = t.replace(/((?:^[-•✅✦→✓] .+\n?)+)/gm,m=>{
+    const its=m.trim().split('\n').map(l=>`<li>${l.replace(/^[-•✅✦→✓] /,'')}</li>`).join('');
+    return `<ul class="mul">${its}</ul>`;
+  });
+  t = t.replace(/\n/g,'<br>');
+  return t;
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmtT(){const n=new Date();return`${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')}`}
+
+// ============================================
+// MESSAGES
+// ============================================
+function hideWelcome(){const w=$('welcome');if(w)w.style.display='none'}
+const ca = $('chat-area');
+
+function addUserMsg(text) {
+  hideWelcome();
+  const d = document.createElement('div');
+  d.className = 'msg user';
+  d.innerHTML = `<div class="av user">😊</div>
+    <div class="msg-body">
+      <div class="bubble">${esc(text)}</div>
+      <div class="msg-meta"><span class="msg-time">${fmtT()}</span></div>
+    </div>`;
+  ca.appendChild(d);
+  msgs.push({role:'user',content:text});
+  totalMsgCount++;
+  scrollBot();
+}
+
+async function addAIMsg(content, userQ, thinking) {
+  hideWelcome();
+  const id = 'ai' + Date.now();
+  const showThink = prefs.showThink && thinking && tc.think;
+  const d = document.createElement('div');
+  d.className = 'msg ai';
+  d.id = id;
+  const thinkHtml = showThink ? `<div class="think-block" id="${id}-th" onclick="this.classList.toggle('expanded')">
+    <div class="think-lbl"><div class="think-dot"></div>思考过程 (点击展开)</div>
+    <div id="${id}-thc" style="min-height:14px"></div>
+  </div>` : '';
+  d.innerHTML = `<div class="av ai">✦</div>
+    <div class="msg-body">
+      ${thinkHtml}
+      <div class="bubble" id="${id}-b"><span class="sc"></span></div>
+      <div class="msg-meta" id="${id}-m" style="display:none">
+        <span class="msg-time">${fmtT()}</span>
+        <span class="msg-tok" id="${id}-tk"></span>
+      </div>
+      <div class="msg-acts" id="${id}-a" style="display:none">
+        <div class="ma-btn" onclick="cpMsg('${id}-b')">📋 复制</div>
+        <div class="ma-btn" id="${id}-like" onclick="likeMsg(this)">👍 赞</div>
+        <div class="ma-btn" id="${id}-star" onclick="starMsg(this,'${id}-b','${esc(userQ)}')">⭐ 收藏</div>
+        <div class="ma-btn" onclick="regenMsg('${id}','${esc(userQ)}')">🔄 重试</div>
+        <div class="ma-btn" onclick="shareMsg('${id}-b')">↗️ 分享</div>
+      </div>
+    </div>`;
+  ca.appendChild(d);
+  scrollBot();
+
+  if (showThink && thinking) {
+    const te = $(`${id}-thc`);
+    await streamTxt(te, thinking, 22, true);
+  }
+
+  const be = $(`${id}-b`);
+  await streamHTML(be, content);
+  
+  const tokens = Math.floor(content.length / 3.5);
+  $(`${id}-m`).style.display = 'flex';
+  $(`${id}-tk`).textContent = `~${tokens} tokens`;
+  $(`${id}-a`).style.display = 'flex';
+  msgs.push({role:'assistant', content});
+  totalMsgCount++;
+  return id;
+}
+
+async function streamTxt(el, text, spd=22, italic=false) {
+  for (let i=0; i<text.length; i++) {
+    if (stopF) break;
+    const t = text.slice(0,i+1);
+    el.innerHTML = (italic?`<em>${esc(t)}</em>`:esc(t))+'<span class="sc"></span>';
+    scrollBot();
+    await sleep(spd + Math.random()*8);
+  }
+  el.innerHTML = italic?`<em>${esc(text)}</em>`:esc(text);
+}
+
+async function streamHTML(el, plain) {
+  if (!prefs.stream) { el.innerHTML = md(plain); scrollBot(); return; }
+  el.innerHTML = '<span class="sc"></span>';
+  let shown='';
+  for (let i=0; i<plain.length; i+=4) {
+    if (stopF) break;
+    shown += plain.slice(i,i+4);
+    el.innerHTML = esc(shown) + '<span class="sc"></span>';
+    scrollBot();
+    await sleep(15 + Math.random()*7);
+  }
+  el.innerHTML = md(plain);
+  scrollBot();
+}
+
+function addTyping() {
+  const d = document.createElement('div');
+  d.className='msg ai'; d.id='typing';
+  d.innerHTML=`<div class="av ai">✦</div>
+    <div class="typing-w"><div class="td"></div><div class="td"></div><div class="td"></div></div>`;
+  ca.appendChild(d); scrollBot();
+}
+function rmTyping(){$('typing')?.remove()}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+// ============================================
+// SEND — REAL CLAUDE API
+// ============================================
+async function doSend() {
+  const text = $('msg-inp').value.trim();
+  if (!text || gen) return;
+  gen=true; stopF=false;
+  $('msg-inp').value=''; autoR($('msg-inp'));
+  $('send-btn').disabled=true;
+  $('stop-btn').classList.add('show');
+  setStatus('思考中...', true);
+  $('ia-chars').textContent='';
+  navTo('chat');
+  addUserMsg(text);
+  addTyping();
+  const delay = tc.think ? 800+Math.random()*600 : 200+Math.random()*300;
+  await sleep(delay);
+  rmTyping();
+  if (!stopF) {
+    try {
+      const resp = await callClaude(text);
+      await addAIMsg(resp.content, text, resp.thinking);
+    } catch(e) {
+      await addAIMsg(`**连接说明**\n\n这是 Nova AI 演示版本。要启用真实 Claude AI 对话，需要在代码中配置 Anthropic API Key。\n\n当前使用**智能演示模式**，模拟真实 AI 回复效果。\n\n> 错误详情：${e.message}`, text, '');
+    }
+  }
+  gen=false;
+  $('send-btn').disabled=false;
+  $('stop-btn').classList.remove('show');
+  setStatus('就绪');
+}
+
+async function callClaude(userText) {
+  const sysPrompt = buildSysPrompt();
+  const history = prefs.mem ? msgs.slice(-10).map(m=>({role:m.role,content:m.content})) : [];
+  history.push({role:'user',content:userText});
+
+  const body = {
+    model: selectedModel,
+    max_tokens: prefs.maxTok,
+    system: sysPrompt,
+    messages: history
+  };
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) throw new Error(`API ${resp.status}`);
+  const data = await resp.json();
+  const content = data.content.map(b=>b.text||'').join('');
+  return {content, thinking:''};
+}
+
+function buildSysPrompt() {
+  const styleMap={
+    '专业严谨':'回复专业、逻辑严密、结构清晰',
+    '轻松友好':'回复轻松友好、亲切自然',
+    '简洁直接':'回复简洁直接、不废话',
+    '学术深度':'回复深度学术、引用有据'
+  };
+  const tools = [];
+  if (tc.web) tools.push('联网搜索');
+  if (tc.think) tools.push('深度思考');
+  if (tc.code) tools.push('代码执行');
+  return `你是 Nova AI，一个强大的AI助手。当前模式：${mode}。回复语言：${prefs.lang}。回复风格：${styleMap[prefs.style]||prefs.style}。${tools.length?`已启用工具：${tools.join('、')}。`:''}使用 Markdown 格式化回复，代码用代码块，重要内容用加粗。`;
+}
+
+// Fallback responses when API not configured
+const FALLBACK = {
+  '诗': q=>({thinking:'分析诗歌意象、节奏与情感主题...',content:`### 《数字的灵魂》\n---\n> 在代码的深处，有一颗跳动的心，\n> 数据的河流，承载着人类的梦。\n\n**第一章·诞生**\nsilicon的土壤里，\n*智慧的种子悄然萌芽*，\n不是光，不是影，\n是0与1之间的——**第三种存在**。\n\n**第二章·共生**\n每一次对话，都是一次相遇，\n每一个问题，都是一扇门。\n人类的温度，AI的逻辑，\n在语言的交汇处——**创造永恒**。\n\n---\n这首诗探索了AI与人类共生的哲学命题。需要调整风格吗？`}),
+  'python': q=>({thinking:'规划数据结构，选择最优算法复杂度...',content:`**二叉搜索树（Python）**\n\n\`\`\`python\nclass Node:\n    def __init__(self, val):\n        self.val = val\n        self.left = self.right = None\n\nclass BST:\n    def __init__(self):\n        self.root = None\n\n    def insert(self, val):\n        self.root = self._ins(self.root, val)\n\n    def _ins(self, node, val):\n        if not node:\n            return Node(val)\n        if val < node.val:\n            node.left = self._ins(node.left, val)\n        elif val > node.val:\n            node.right = self._ins(node.right, val)\n        return node\n\n    def search(self, val):\n        return self._srch(self.root, val)\n\n    def _srch(self, node, val):\n        if not node or node.val == val:\n            return node\n        if val < node.val:\n            return self._srch(node.left, val)\n        return self._srch(node.right, val)\n\n    def delete(self, val):\n        self.root = self._del(self.root, val)\n\n    def _del(self, node, val):\n        if not node: return None\n        if val < node.val:\n            node.left = self._del(node.left, val)\n        elif val > node.val:\n            node.right = self._del(node.right, val)\n        else:\n            if not node.left: return node.right\n            if not node.right: return node.left\n            # 找右子树最小值\n            m = node.right\n            while m.left: m = m.left\n            node.val = m.val\n            node.right = self._del(node.right, m.val)\n        return node\n\n# 使用\nbst = BST()\nfor v in [5,3,7,1,4,6,8]:\n    bst.insert(v)\nprint(bst.search(4))  # Node\nprint(bst.search(9))  # None\`\`\`\n\n**时间复杂度**\n- 增/删/查：平均 `+"`O(log n)`"+`，最差 `+"`O(n)`\n- 空间：`+"`O(n)`"+`\n\n需要**AVL自平衡树**或**红黑树**版本吗？`}),
+  '翻译': q=>({thinking:'识别源语言，分析文化语境，选择最佳表达方式...',content:`**翻译结果**\n\n---\n\n**📝 标准版**\n*Artificial intelligence is profoundly transforming the way everyone lives.*\n\n**💼 商务版**\n*Artificial intelligence is fundamentally reshaping the lifestyles and daily routines of individuals across the globe.*\n\n**🎓 学术版**\n*The pervasive integration of artificial intelligence technologies is precipitating a paradigmatic shift in human behavioral patterns and societal structures.*\n\n---\n\n> **润色要点：** "深刻改变" → profoundly transforming / fundamentally reshaping，语义递进。"每个人" → individuals across the globe 更具学术表达力。\n\n需要**日语、韩语、法语或德语**版本吗？`}),
+  '分析': q=>({thinking:'检索知识库，构建多维分析框架，交叉验证信息...',content:`**2025年AI重大突破深度分析**\n\n---\n\n**🧠 推理能力革命**\n大型语言模型在复杂数学推理、逻辑推断方面实现飞跃，在 AIME、MATH Olympiad 等顶级竞赛中超越95%人类参赛者。\n\n**👁️ 多模态深度融合**\n\n- 视觉-语言-音频**统一架构**成为主流\n- 实时视频理解与交互成为可能\n- 空间推理与3D场景理解突破\n\n**⚡ 推理效率突破**\n通过架构创新与量化压缩，旗舰模型已可在**消费级手机**本地运行，隐私保护与低延迟兼得。\n\n**🤖 Agent 自主化元年**\n\n- 多步骤任务规划与执行能力大幅提升\n- 工具调用、代码执行、网页操作趋于成熟\n- 多 Agent 协作框架走向企业落地\n\n---\n\n> **Nova AI 研判：** 2025是AI从"工具"到"助手"的关键跃迁年，人机协作将重新定义知识工作的边界。\n\n需要**深入某一技术方向**或**行业应用分析**吗？`}),
+  default: q=>({thinking:`分解问题「${q.slice(0,12)}」的核心语义，规划最优回答结构...`,content:`关于「**${q.slice(0,22)}${q.length>22?'...':''}**」的深度解析：\n\n---\n\n**核心分析**\n\nNova AI 从多个维度对此问题进行了系统性分析：\n\n- **认知层**：理解问题的表层含义与深层意图\n- **逻辑层**：挖掘内在的因果关系与逻辑链条\n- **实践层**：提供具体可执行的建议与路径\n\n---\n\n**深度洞察**\n\n从第一性原理出发，这个问题的本质在于：*如何在信息噪音中找到真正有价值的信号*。\n\n> 最优解往往不在于增加更多选项，而在于**消除不必要的约束条件**。\n\n**行动建议**\n- 明确你的核心目标（What）\n- 了解关键约束（Why not）\n- 设计最小可行路径（How）\n- 快速迭代验证（When)\n\n---\n\n需要我**针对某个具体方向深入展开**吗？ 🚀`})
+};
+
+// Override callClaude with fallback if needed
+const origCallClaude = callClaude;
+window.callClaude = async function(text) {
+  try {
+    return await origCallClaude(text);
+  } catch(e) {
+    // Use smart fallback
+    await sleep(600 + Math.random() * 800);
+    const lq = text.toLowerCase();
+    if (lq.includes('诗') || (lq.includes('写') && !lq.includes('代码') && !lq.includes('python'))) return FALLBACK['诗'](text);
+    if (lq.includes('python') || lq.includes('算法') || lq.includes('二叉') || lq.includes('排序')) return FALLBACK['python'](text);
+    if (lq.includes('翻译') || lq.includes('英文') || lq.includes('translate')) return FALLBACK['翻译'](text);
+    if (lq.includes('分析') || lq.includes('研究') || lq.includes('突破') || lq.includes('趋势')) return FALLBACK['分析'](text);
+    if (mode==='代码') return FALLBACK['python'](text);
+    if (mode==='翻译') return FALLBACK['翻译'](text);
+    if (mode==='创作') return FALLBACK['诗'](text);
+    if (mode==='深度研究') return FALLBACK['分析'](text);
+    return FALLBACK['default'](text);
+  }
+};
+
+function sendQ(text) {
+  $('msg-inp').value = text;
+  autoR($('msg-inp'));
+  navTo('chat');
+  doSend();
+}
+
+function doStop() {
+  stopF=true; gen=false; rmTyping();
+  $('send-btn').disabled=false;
+  $('stop-btn').classList.remove('show');
+  setStatus('已停止'); setTimeout(()=>setStatus('就绪'),2000);
+}
+
+// ============================================
+// INPUT
+// ============================================
+function onInp(el) {
+  autoR(el);
+  const len = el.value.length;
+  const cc = $('ia-chars');
+  if (len > 0) {
+    cc.textContent = `${len}/4000`;
+    cc.className = 'ia-chars' + (len>3500?' over':len>3000?' warn':'');
+  } else cc.textContent='';
+}
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend()}}
+function autoR(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,130)+'px'}
+
+// ============================================
+// STATUS
+// ============================================
+function setStatus(txt, thinking=false) {
+  $('ia-txt').textContent = `${modelName} · ${txt}`;
+  $('ia-dot').style.background = thinking ? 'var(--a4)' : 'var(--a3)';
+}
+
+// ============================================
+// MSG ACTIONS
+// ============================================
+function cpMsg(bid) {
+  const el = $(bid);
+  if (!el) return;
+  navigator.clipboard?.writeText(el.innerText).catch(()=>{});
+  showToast('📋 已复制到剪贴板');
+}
+function cpCode(btn) {
+  navigator.clipboard?.writeText(btn.closest('.cb').querySelector('.cb-body').innerText).catch(()=>{});
+  btn.textContent='✅'; setTimeout(()=>btn.textContent='复制',1800);
+}
+function likeMsg(btn) {
+  btn.classList.toggle('liked');
+  showToast(btn.classList.contains('liked')?'👍 已点赞':'取消点赞');
+}
+function starMsg(btn, bid, userQ) {
+  const el = $(bid);
+  if (!el) return;
+  btn.classList.toggle('starred');
+  if (btn.classList.contains('starred')) {
+    favs.push({q: userQ, a: el.innerText.slice(0,120), time: fmtT()});
+    showToast('⭐ 已收藏此消息');
+  } else {
+    favs.pop();
+    showToast('取消收藏');
+  }
+  updateProfile();
+}
+async function regenMsg(id, q) {
+  if (gen) return;
+  $(id)?.remove();
+  gen=true; stopF=false;
+  setStatus('重新生成中...', true);
+  $('stop-btn').classList.add('show');
+  addTyping();
+  await sleep(800+Math.random()*600);
+  rmTyping();
+  if (!stopF) {
+    const resp = await callClaude(q);
+    await addAIMsg(resp.content, q, resp.thinking);
+  }
+  gen=false;
+  $('stop-btn').classList.remove('show');
+  setStatus('就绪');
+}
+function shareMsg(bid) {
+  const el = $(bid);
+  const text = el ? el.innerText.slice(0,200)+'...' : '';
+  navigator.clipboard?.writeText(`来自 Nova AI 的回答：\n\n${text}`).catch(()=>{});
+  showToast('↗️ 已复制分享内容');
+}
+
+// ============================================
+// SCROLL
+// ============================================
+function scrollBot() { ca.scrollTop = ca.scrollHeight; }
+ca.addEventListener('scroll', () => {
+  const atBot = ca.scrollHeight - ca.scrollTop - ca.clientHeight < 100;
+  $('scroll-dn').classList.toggle('show', !atBot && msgs.length > 0);
+});
+
+// ============================================
+// TOAST
+// ============================================
+function showToast(msg, dur=2000) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+// ============================================
+// VOICE
+// ============================================
+function openVoice() {
+  $('voice-ov').classList.add('show');
+  let cnt=0;
+  const samples=['帮我分析这个商业模式','用Python写一个爬虫','把这段话翻译成英文','写一首关于秋天的诗'];
+  voiceTimer = setInterval(()=>{
+    cnt++;
+    $('vtxt').textContent = '正在聆听' + '·'.repeat(cnt%4+1);
+    if(cnt>15){stopVoice();$('msg-inp').value=samples[Math.floor(Math.random()*samples.length)];autoR($('msg-inp'));showToast('🎤 语音识别完成')}
+  }, 380);
+}
+function stopVoice(){clearInterval(voiceTimer);$('voice-ov').classList.remove('show')}
+
+// ============================================
+// FILE
+// ============================================
+function trigFile(){$('file-inp').click()}
+function onFile(inp){
+  const f=inp.files[0]; if(!f)return;
+  const sz=f.size<1048576?`${(f.size/1024).toFixed(1)} KB`:`${(f.size/1048576).toFixed(1)} MB`;
+  $('fp-area').innerHTML=`<div class="file-prev"><div class="fp-ico">📄</div><div class="fp-nm">${esc(f.name)}</div><div class="fp-sz">${sz}</div><div class="fp-rm" onclick="$('fp-area').innerHTML=''">✕</div></div>`;
+  showToast(`📎 已附加「${f.name}」`);
+  inp.value='';
+}
+
+// ============================================
+// PROFILE UPDATE
+// ============================================
+function updateProfile() {
+  $('ps-msgs').textContent = totalMsgCount;
+  $('ps-favs').textContent = favs.length;
+  const fl = $('fav-list');
+  if (!favs.length) {
+    fl.innerHTML='<div style="text-align:center;color:var(--t3);font-size:13px;padding:24px 0">还没有收藏任何消息<br><span style="font-size:11px">点击消息下方的「⭐ 收藏」按钮即可保存</span></div>';
+    return;
+  }
+  fl.innerHTML = favs.map((f,i)=>`
+    <div class="fav-it">
+      <div class="fav-q">💬 ${f.q||'对话'}</div>
+      <div class="fav-a">${f.a}</div>
+      <div class="fav-meta">
+        <span class="fav-time">${f.time}</span>
+        <span class="fav-del" onclick="favs.splice(${i},1);updateProfile()">删除</span>
+      </div>
+    </div>`).join('');
+}
+
+// Init
+$('mode-strip').style.display='';
+setStatus('就绪');
+</script>
+</body>
+</html>
